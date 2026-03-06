@@ -4,21 +4,29 @@ Handles forward and backward propagation loops.
 """
 import numpy as np
 
-from .neural_layer import Layer
-from .activations import Activation
-from .objective_functions import Loss
+try:
+    from .neural_layer import Layer
+    from .activations import Activation
+    from .objective_functions import Loss
+    from .optimizers import Optimizer
+except ImportError:
+    from neural_layer import Layer
+    from activations import Activation
+    from objective_functions import Loss
+    from optimizers import Optimizer
 
 
 class NeuralNetwork:
     def __init__(self, cli_args):
         self.args = cli_args
 
-        self.activation_name = getattr(cli_args, "activation", "relu")
-        self.weight_init = getattr(cli_args, "weight_init", "random")
-        self.loss_fn = Loss(getattr(cli_args, "loss", "cross_entropy"))
+        self.activation_name = getattr(cli_args, "activation", "relu") or "relu"
+        self.weight_init = getattr(cli_args, "weight_init", "random") or "random"
+        loss_name = getattr(cli_args, "loss", "cross_entropy") or "cross_entropy"
+        self.loss_fn = Loss(loss_name)
 
-        self.lr = float(getattr(cli_args, "learning_rate", 1e-3))
-        self.weight_decay = float(getattr(cli_args, "weight_decay", 0.0))
+        self.lr = float(getattr(cli_args, "learning_rate", 1e-3) or 1e-3)
+        self.weight_decay = float(getattr(cli_args, "weight_decay", 0.0) or 0.0)
         self.optimizer = None
 
         self.grad_W = None
@@ -31,13 +39,12 @@ class NeuralNetwork:
         input_dim = getattr(cli_args, "input_dim", None)
         if input_dim is None:
             input_dim = getattr(cli_args, "input_size", 784)
+        input_dim = int(input_dim) if input_dim is not None else 784
 
         output_dim = getattr(cli_args, "output_dim", None)
         if output_dim is None:
             output_dim = getattr(cli_args, "output_size", 10)
-
-        input_dim = int(input_dim)
-        output_dim = int(output_dim)
+        output_dim = int(output_dim) if output_dim is not None else 10
 
         if hasattr(cli_args, "layer_sizes") and getattr(cli_args, "layer_sizes") is not None:
             raw_sizes = list(getattr(cli_args, "layer_sizes"))
@@ -46,7 +53,6 @@ class NeuralNetwork:
             if len(raw_sizes) == 0:
                 return [input_dim, output_dim]
 
-            # make robust:
             if raw_sizes[0] != input_dim:
                 raw_sizes = [input_dim] + raw_sizes
             if raw_sizes[-1] != output_dim:
@@ -54,17 +60,19 @@ class NeuralNetwork:
 
             return raw_sizes
 
-        # Case 2: hidden-layer interface
+        # hidden-layer interface
         n_hidden = getattr(cli_args, "num_hidden_layers", None)
         if n_hidden is None:
             n_hidden = getattr(cli_args, "num_layers", 1)
-        n_hidden = int(n_hidden)
+        n_hidden = int(n_hidden) if n_hidden is not None else 1
 
         hidden_sizes = getattr(cli_args, "hidden_sizes", None)
         if hidden_sizes is None:
             hidden_size = getattr(cli_args, "hidden_size", 128)
 
-            if np.isscalar(hidden_size):
+            if hidden_size is None:
+                hidden_sizes = [128] * n_hidden
+            elif np.isscalar(hidden_size):
                 hidden_sizes = [int(hidden_size)] * n_hidden
             else:
                 hidden_sizes = [int(x) for x in list(hidden_size)]
@@ -91,7 +99,6 @@ class NeuralNetwork:
         for in_dim, out_dim in zip(self.layer_sizes[:-1], self.layer_sizes[1:]):
             self.layers.append(Layer(in_dim, out_dim, weight_init=self.weight_init))
 
-        # activation after every hidden layer only
         for _ in range(len(self.layers) - 1):
             self.activations.append(Activation(self.activation_name))
 
@@ -107,17 +114,14 @@ class NeuralNetwork:
 
     def backward(self, y_true, y_pred):
         d_logits = self.loss_fn.backward(y_true, y_pred)
-
         grad = d_logits
 
-        # backprop through layers from last to first
         for layer_idx in range(len(self.layers) - 1, -1, -1):
             grad = self.layers[layer_idx].backward(grad)
 
             if layer_idx > 0:
                 grad = self.activations[layer_idx - 1].backward(grad)
 
-        # store grads in forward layer order for compatibility
         self.grad_W = np.empty(len(self.layers), dtype=object)
         self.grad_b = np.empty(len(self.layers), dtype=object)
 
@@ -148,10 +152,8 @@ class NeuralNetwork:
 
             for start in range(0, n, int(batch_size)):
                 end = start + int(batch_size)
-
                 xb = X_shuf[start:end]
                 yb = y_shuf[start:end]
-
                 logits = self.forward(xb)
                 self.backward(yb, logits)
                 self.update_weights()
