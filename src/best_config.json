@@ -3,12 +3,11 @@
   "epochs": 20,
   "batch_size": 64,
   "loss": "cross_entropy",
-  "optimizer": "momentum",
+  "optimizer": "rmsprop",
   "learning_rate": 0.001,
-  "weight_decay": 0.0005,
-  "num_hidden_layers": 3,
+  "weight_decay": 0.0,
+  "num_hidden_layers": 2,
   "hidden_sizes": [
-    256,
     128,
     64
   ],
