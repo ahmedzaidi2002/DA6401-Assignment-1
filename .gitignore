@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints
+
+# WandB logs
+wandb/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# venv
+venv/
+.env
+
+# Python build
+build/
+dist/
+
+# cache
+*.cache
+
+# vscode
+.vscode/
