@@ -38,12 +38,18 @@ class Layer:
         return x @ self.W + self.b
 
     def backward(self, dZ: np.ndarray) -> np.ndarray:
+        """
+        Computes and stores gradients for W and b, and returns dX.
+
+        NOTE: dZ should already be scaled by 1/m from the loss function.
+        This layer does NOT divide by batch size — that responsibility
+        lies with the loss backward pass, which is the standard convention.
+        """
         if self._x is None:
             raise RuntimeError("Layer.backward called before forward().")
         if dZ.ndim != 2 or dZ.shape[1] != self.W.shape[1]:
             raise ValueError(f"Expected dZ shape (batch, {self.W.shape[1]}), got {dZ.shape}")
 
-        m = self._x.shape[0]
-        self.grad_W = (self._x.T @ dZ) / m
-        self.grad_b = np.sum(dZ, axis=0, keepdims=True) / m
+        self.grad_W = self._x.T @ dZ
+        self.grad_b = np.sum(dZ, axis=0, keepdims=True)
         return dZ @ self.W.T

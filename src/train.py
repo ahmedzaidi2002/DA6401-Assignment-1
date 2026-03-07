@@ -37,13 +37,18 @@ def build_parser():
     p.add_argument("-e",  "--epochs",         type=int,   default=10)
     p.add_argument("-b",  "--batch_size",     type=int,   default=64)
     p.add_argument("-l",  "--loss",           type=str,   default="cross_entropy", choices=["mse", "cross_entropy"])
-    p.add_argument("-o",  "--optimizer",      type=str,   default="momentum",      choices=["sgd", "momentum", "nag", "rmsprop"])
-    p.add_argument("-lr", "--learning_rate",  type=float, default=0.01)
+    p.add_argument("-o",  "--optimizer",      type=str,   default="momentum",
+                   choices=["sgd", "momentum", "nag", "rmsprop"])
+    p.add_argument("-lr", "--learning_rate",  type=float, default=0.001)
     p.add_argument("-wd", "--weight_decay",   type=float, default=0.0)
-    p.add_argument("--num_layers", "--num_hidden_layers", dest="num_hidden_layers", type=int, default=2)
-    p.add_argument("--hidden_size", "--hidden_sizes",     dest="hidden_sizes", type=int, nargs="+", default=[128, 64])
-    p.add_argument("-a",  "--activation",  type=str, default="relu",   choices=["sigmoid", "tanh", "relu"])
-    p.add_argument("-wi", "--weight_init", type=str, default="xavier", choices=["random", "xavier"])
+    p.add_argument("-nhl", "--num_layers", "--num_hidden_layers",
+                   dest="num_hidden_layers", type=int, default=2)
+    p.add_argument("-sz", "--hidden_size", "--hidden_sizes",
+                   dest="hidden_sizes", type=int, nargs="+", default=[128, 64])
+    p.add_argument("-a",  "--activation",  type=str, default="relu",
+                   choices=["sigmoid", "tanh", "relu"])
+    p.add_argument("-w_i", "--weight_init", type=str, default="xavier",
+                   choices=["random", "xavier"])
     p.add_argument("-wp", "--wandb_project", type=str, default="Assignment_1")
     p.add_argument("--save_model",  type=str, default=os.path.join("src", "best_model.npy"))
     p.add_argument("--save_config", type=str, default=os.path.join("src", "best_config.json"))
@@ -52,32 +57,6 @@ def build_parser():
 
 def parse_arguments():
     return build_parser().parse_args()
-
-
-def _load_existing_f1(model_path, config_path, X_test, y_test_oh):
-    """Load existing saved model and return its F1, or -1 if not found."""
-    try:
-        if not os.path.exists(model_path):
-            return -1.0
-        with open(config_path, "r") as f:
-            cfg = json.load(f)
-
-        class _Cfg:
-            pass
-        saved_args = _Cfg()
-        for k, v in cfg.items():
-            setattr(saved_args, k, v)
-
-        existing_model = NeuralNetwork(saved_args)
-        weights = np.load(model_path, allow_pickle=True).item()
-        existing_model.set_weights(weights)
-        logits = existing_model.forward(X_test)
-        _, _, _, f1 = classification_report_from_logits(logits, y_test_oh)
-        print(f"Existing saved model F1: {f1:.4f}")
-        return f1
-    except Exception as e:
-        print(f"Could not load existing model ({e}), starting fresh.")
-        return -1.0
 
 
 def main():
@@ -93,8 +72,8 @@ def main():
     y_val_oh   = one_hot_encode(y_val)
     y_test_oh  = one_hot_encode(y_test)
 
-    # ---- Load existing best model F1 so we don't overwrite a good model ----
-    best_test_f1 = _load_existing_f1(args.save_model, args.save_config, X_test, y_test_oh)
+    # Always start fresh — best_test_f1 tracks this run only
+    best_test_f1 = -1.0
 
     model = NeuralNetwork(args)
     model.optimizer = Optimizer(args.optimizer, args.learning_rate, args.weight_decay)
@@ -126,7 +105,7 @@ def main():
             f"Test: acc={test_acc:.4f}, f1={test_f1:.4f}"
         )
 
-        # Only overwrite saved model if this run beats it
+        # Save best model from THIS run (always overwrites previous runs)
         if test_f1 > best_test_f1:
             best_test_f1 = test_f1
 
@@ -141,7 +120,7 @@ def main():
             with open(args.save_config, "w") as f:
                 json.dump(vars(args), f, indent=2)
 
-            print(f"  ✓ New best model saved (F1={best_test_f1:.4f})")
+            print(f"  -> New best model saved (F1={best_test_f1:.4f})")
 
     print(f"\nDone. Best Test F1 = {best_test_f1:.4f}")
     print(f"Model path: {args.save_model}")

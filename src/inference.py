@@ -49,14 +49,16 @@ def build_parser():
         choices=["sgd", "momentum", "nag", "rmsprop"]
     )
 
-    p.add_argument("-lr", "--learning_rate", type=float, default=0.01)
+    p.add_argument("-lr", "--learning_rate", type=float, default=0.001)
     p.add_argument("-wd", "--weight_decay", type=float, default=0.0)
 
-    p.add_argument("--num_layers", "--num_hidden_layers", dest="num_hidden_layers", type=int, default=2)
-    p.add_argument("--hidden_size", "--hidden_sizes", dest="hidden_sizes", type=int, nargs="+", default=[128, 64])
+    p.add_argument("-nhl", "--num_layers", "--num_hidden_layers",
+                   dest="num_hidden_layers", type=int, default=2)
+    p.add_argument("-sz", "--hidden_size", "--hidden_sizes",
+                   dest="hidden_sizes", type=int, nargs="+", default=[128, 64])
 
     p.add_argument("-a", "--activation", type=str, default="relu", choices=["sigmoid", "tanh", "relu"])
-    p.add_argument("-wi", "--weight_init", type=str, default="xavier", choices=["random", "xavier"])
+    p.add_argument("-w_i", "--weight_init", type=str, default="xavier", choices=["random", "xavier"])
     p.add_argument("-wp", "--wandb_project", type=str, default="DA6401-A1")
 
     p.add_argument("--model_path", type=str, default="src/best_model.npy")

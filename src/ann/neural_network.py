@@ -1,5 +1,5 @@
 """
-Main Neural Network Model class
+Main Neural Network Model class.
 Handles forward and backward propagation loops.
 """
 import numpy as np
@@ -103,16 +103,24 @@ class NeuralNetwork:
             self.activations.append(Activation(self.activation_name))
 
     def forward(self, X):
+        """Forward pass through all layers."""
         a = X
         for i, layer in enumerate(self.layers):
             z = layer.forward(a)
             if i < len(self.activations):
                 a = self.activations[i].forward(z)
             else:
-                a = z
+                a = z  # output layer: raw logits
         return a
 
     def backward(self, y_true, y_pred):
+        """
+        Backward pass: computes gradients for all layers.
+
+        The loss function's backward returns dL/dlogits already normalized by 1/m.
+        Each layer's backward stores grad_W = X.T @ dZ and grad_b = sum(dZ)
+        without any additional normalization.
+        """
         d_logits = self.loss_fn.backward(y_true, y_pred)
         grad = d_logits
 
@@ -122,6 +130,7 @@ class NeuralNetwork:
             if layer_idx > 0:
                 grad = self.activations[layer_idx - 1].backward(grad)
 
+        # Collect gradients into arrays for external access
         self.grad_W = np.empty(len(self.layers), dtype=object)
         self.grad_b = np.empty(len(self.layers), dtype=object)
 
@@ -132,6 +141,7 @@ class NeuralNetwork:
         return self.grad_W, self.grad_b
 
     def update_weights(self):
+        """Update weights using the optimizer or simple SGD."""
         if self.optimizer is not None:
             self.optimizer.step(self.layers)
             return
@@ -143,6 +153,7 @@ class NeuralNetwork:
             layer.b -= self.lr * layer.grad_b
 
     def train(self, X_train, y_train, epochs=1, batch_size=32):
+        """Train the model for the specified number of epochs."""
         n = X_train.shape[0]
 
         for _ in range(int(epochs)):
@@ -159,12 +170,14 @@ class NeuralNetwork:
                 self.update_weights()
 
     def evaluate(self, X, y):
+        """Return accuracy on the given data."""
         logits = self.forward(X)
         y_pred = np.argmax(logits, axis=1)
         y_true = np.argmax(y, axis=1)
         return float(np.mean(y_pred == y_true))
 
     def get_weights(self):
+        """Return a dict of all weight matrices and bias vectors."""
         weight_dict = {}
         for i, layer in enumerate(self.layers):
             weight_dict[f"W{i}"] = layer.W.copy()
@@ -172,6 +185,7 @@ class NeuralNetwork:
         return weight_dict
 
     def set_weights(self, weight_dict):
+        """Load weights from a dict, rebuilding network if shapes differ."""
         weight_keys = sorted(
             [k for k in weight_dict.keys() if k.startswith("W")],
             key=lambda x: int(x[1:])
